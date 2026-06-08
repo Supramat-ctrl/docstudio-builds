@@ -64,7 +64,7 @@ jobs:
       run: |
         CMAKE="${{ env.PROJECT_DIR }}/app/src/main/cpp/CMakeLists.txt"
         if [ -f "$CMAKE" ] && grep -q "FetchContent" "$CMAKE"; then
-          echo "FetchContent detected — cloning DjVuLibre..."
+          echo "FetchContent detected - cloning DjVuLibre..."
           git clone --depth=1 https://github.com/barak/djvulibre.git /tmp/djvulibre_src
           CPP_DIR="${{ env.PROJECT_DIR }}/app/src/main/cpp"
           mkdir -p "$CPP_DIR/djvulibre"
