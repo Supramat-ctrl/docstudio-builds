@@ -1,1 +1,1 @@
-{"ts":1780915344035,"zipPath":"uploads/project_1780915344035.zip","buildType":"release","triggered":"2026-06-08T10:42:28.597Z"}
+{"ts":1780916285193,"zipPath":"uploads/project_1780916285193.zip","buildType":"debug","triggered":"2026-06-08T10:58:10.252Z"}
