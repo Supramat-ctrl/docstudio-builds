@@ -103,7 +103,7 @@ endif()
 CMAKE_EOF
           echo "CMakeLists.txt patched"
         else
-          echo "No FetchContent — skipping"
+          echo "No FetchContent - skipping"
         fi
 
     - name: Cache Gradle
