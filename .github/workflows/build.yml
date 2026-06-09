@@ -45,12 +45,7 @@ jobs:
           git clone --depth=1 https://github.com/barak/djvulibre.git /tmp/djvu
           mkdir -p "${{ env.PROJECT_DIR }}/app/src/main/cpp/djvulibre"
           cp -r /tmp/djvu/libdjvu "${{ env.PROJECT_DIR }}/app/src/main/cpp/djvulibre/libdjvu"
-          python3 -c "
-import sys
-cmake = open(sys.argv[1]).read()
-new = 'cmake_minimum_required(VERSION 3.18.1)\nproject(docstudio)\nset(DJVU ${CMAKE_SOURCE_DIR}/djvulibre/libdjvu)\nset(COM ${CMAKE_SOURCE_DIR}/common)\nset(JNI ${CMAKE_SOURCE_DIR}/djvu)\nfile(GLOB SRC ${DJVU}/*.cpp)\nadd_library(djvucore STATIC ${SRC})\ntarget_include_directories(djvucore PUBLIC ${DJVU})\ntarget_compile_definitions(djvucore PRIVATE -DHAVE_PTHREAD -DNO_LIBGCC_HOOKS -DHAVE_STDINT_H -DUNIX)\ntarget_compile_options(djvucore PRIVATE -fexceptions -frtti)\nadd_library(djvu SHARED ${JNI}/djvu.c ${COM}/list.c ${COM}/orion_bitmap.c)\ntarget_include_directories(djvu PRIVATE ${DJVU} ${JNI} ${COM})\ntarget_compile_definitions(djvu PRIVATE -DORION_FOR_ANDROID)\ntarget_compile_options(djvu PRIVATE -fexceptions -frtti)\ntarget_link_libraries(djvu djvucore android jnigraphics log m)\n'
-open(sys.argv[1], 'w').write(new)
-          " "$CMAKE"
+          printf "cmake_minimum_required(VERSION 3.18.1)\nproject(docstudio)\n" > "$CMAKE"
         fi
 
     - name: Cache Gradle
