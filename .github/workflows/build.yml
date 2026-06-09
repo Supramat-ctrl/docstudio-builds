@@ -4,10 +4,6 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
-    inputs:
-      build_type:
-        description: 'debug or release'
-        default: 'debug'
 
 jobs:
   build:
@@ -26,55 +22,35 @@ jobs:
 
     - name: Install NDK
       run: |
-        echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
-          "ndk;25.2.9519653" \
-          "cmake;3.22.1" \
-          "build-tools;34.0.0" \
-          "platforms;android-34" \
-          "platform-tools"
+        echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;25.2.9519653" "cmake;3.22.1" "build-tools;34.0.0" "platforms;android-34" "platform-tools"
 
-    - name: Find and extract project ZIP
+    - name: Extract ZIP
       run: |
         ZIP=$(find uploads/ -name "*.zip" | sort | tail -1)
-        if [ -z "$ZIP" ]; then echo "No ZIP found"; exit 1; fi
+        test -n "$ZIP" || (echo "No ZIP" && exit 1)
         unzip -q "$ZIP" -d project_src
-        PROJ=$(find project_src -name "gradlew" | head -1 | xargs dirname)
+        PROJ=$(find project_src -name "gradlew" -maxdepth 4 | head -1 | xargs dirname)
         echo "PROJECT_DIR=$PROJ" >> $GITHUB_ENV
 
-    - name: Fix gradle-wrapper.jar
+    - name: Fix gradle wrapper
       run: |
-        WRAPPER_DIR="${{ env.PROJECT_DIR }}/gradle/wrapper"
-        mkdir -p "$WRAPPER_DIR"
-        if [ ! -f "$WRAPPER_DIR/gradle-wrapper.jar" ]; then
-          curl -sL "https://github.com/gradle/gradle/raw/v8.4.0/gradle/wrapper/gradle-wrapper.jar" -o "$WRAPPER_DIR/gradle-wrapper.jar"
-          echo "Downloaded gradle-wrapper.jar"
-        fi
+        mkdir -p "${{ env.PROJECT_DIR }}/gradle/wrapper"
+        JAR="${{ env.PROJECT_DIR }}/gradle/wrapper/gradle-wrapper.jar"
+        test -f "$JAR" || curl -sL "https://github.com/gradle/gradle/raw/v8.4.0/gradle/wrapper/gradle-wrapper.jar" -o "$JAR"
 
     - name: Fix CMakeLists
       run: |
         CMAKE="${{ env.PROJECT_DIR }}/app/src/main/cpp/CMakeLists.txt"
         if [ -f "$CMAKE" ] && grep -q "FetchContent" "$CMAKE"; then
           git clone --depth=1 https://github.com/barak/djvulibre.git /tmp/djvu
-          CPP="${{ env.PROJECT_DIR }}/app/src/main/cpp"
-          mkdir -p "$CPP/djvulibre"
-          cp -r /tmp/djvu/libdjvu "$CPP/djvulibre/libdjvu"
-          cat > "$CMAKE" << 'CMEOF'
-cmake_minimum_required(VERSION 3.18.1)
-project(docstudio)
-set(DJVU_SRC ${CMAKE_SOURCE_DIR}/djvulibre/libdjvu)
-set(COMMON ${CMAKE_SOURCE_DIR}/common)
-set(JNI ${CMAKE_SOURCE_DIR}/djvu)
-file(GLOB SRC ${DJVU_SRC}/*.cpp)
-add_library(djvucore STATIC ${SRC})
-target_include_directories(djvucore PUBLIC ${DJVU_SRC})
-target_compile_definitions(djvucore PRIVATE -DHAVE_PTHREAD -DNO_LIBGCC_HOOKS -DHAVE_STDINT_H -DHAVE_NAMESPACES -DUNIX)
-target_compile_options(djvucore PRIVATE -fexceptions -frtti)
-add_library(djvu SHARED ${JNI}/djvu.c ${COMMON}/list.c ${COMMON}/orion_bitmap.c)
-target_include_directories(djvu PRIVATE ${DJVU_SRC} ${JNI} ${COMMON})
-target_compile_definitions(djvu PRIVATE -DORION_FOR_ANDROID)
-target_compile_options(djvu PRIVATE -fexceptions -frtti)
-target_link_libraries(djvu djvucore android jnigraphics log m)
-CMEOF
+          mkdir -p "${{ env.PROJECT_DIR }}/app/src/main/cpp/djvulibre"
+          cp -r /tmp/djvu/libdjvu "${{ env.PROJECT_DIR }}/app/src/main/cpp/djvulibre/libdjvu"
+          python3 -c "
+import sys
+cmake = open(sys.argv[1]).read()
+new = 'cmake_minimum_required(VERSION 3.18.1)\nproject(docstudio)\nset(DJVU ${CMAKE_SOURCE_DIR}/djvulibre/libdjvu)\nset(COM ${CMAKE_SOURCE_DIR}/common)\nset(JNI ${CMAKE_SOURCE_DIR}/djvu)\nfile(GLOB SRC ${DJVU}/*.cpp)\nadd_library(djvucore STATIC ${SRC})\ntarget_include_directories(djvucore PUBLIC ${DJVU})\ntarget_compile_definitions(djvucore PRIVATE -DHAVE_PTHREAD -DNO_LIBGCC_HOOKS -DHAVE_STDINT_H -DUNIX)\ntarget_compile_options(djvucore PRIVATE -fexceptions -frtti)\nadd_library(djvu SHARED ${JNI}/djvu.c ${COM}/list.c ${COM}/orion_bitmap.c)\ntarget_include_directories(djvu PRIVATE ${DJVU} ${JNI} ${COM})\ntarget_compile_definitions(djvu PRIVATE -DORION_FOR_ANDROID)\ntarget_compile_options(djvu PRIVATE -fexceptions -frtti)\ntarget_link_libraries(djvu djvucore android jnigraphics log m)\n'
+open(sys.argv[1], 'w').write(new)
+          " "$CMAKE"
         fi
 
     - name: Cache Gradle
@@ -92,7 +68,7 @@ CMEOF
         chmod +x gradlew
         ./gradlew assembleDebug --no-daemon --stacktrace
 
-    - name: Find and upload APK
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: DocStudio-${{ github.run_number }}
