@@ -49,7 +49,7 @@ jobs:
         mkdir -p "$WRAPPER_DIR"
         if [ ! -f "$WRAPPER_DIR/gradle-wrapper.jar" ]; then
           echo "Downloading gradle-wrapper.jar..."
-          GRADLE_VER=$(grep distributionUrl "$WRAPPER_DIR/gradle-wrapper.properties" 2>/dev/null | grep -oP 'gradle-\K[0-9.]+(?=-)')
+          GRADLE_VER=8.4
           GRADLE_VER=${GRADLE_VER:-8.4}
           curl -sL "https://raw.githubusercontent.com/gradle/gradle/v${GRADLE_VER}.0/gradle/wrapper/gradle-wrapper.jar" \
             -o "$WRAPPER_DIR/gradle-wrapper.jar" || \
